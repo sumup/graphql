@@ -45,7 +45,7 @@ import (
 // Client is a client for interacting with a GraphQL API.
 type Client struct {
 	endpoint         string
-	httpClient       *http.Client
+	httpClient       CustomHttpClient
 	useMultipartForm bool
 
 	// closeReq will close the request body immediately allowing for reuse of client
@@ -57,7 +57,13 @@ type Client struct {
 	Log func(s string)
 }
 
+// CustomHttpClient allows a custom http.Client to be used other than the default one provided by golang.
+type CustomHttpClient interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
 // NewClient makes a new Client capable of making GraphQL requests.
+// In case no option for http.Client is provided the default one is used in place.
 func NewClient(endpoint string, opts ...ClientOption) *Client {
 	c := &Client{
 		endpoint: endpoint,
@@ -224,7 +230,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 // WithHTTPClient specifies the underlying http.Client to use when
 // making requests.
 //  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
-func WithHTTPClient(httpclient *http.Client) ClientOption {
+func WithHTTPClient(httpclient CustomHttpClient) ClientOption {
 	return func(client *Client) {
 		client.httpClient = httpclient
 	}
