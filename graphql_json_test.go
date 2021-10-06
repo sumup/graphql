@@ -63,7 +63,9 @@ func TestDoJSONServerError(t *testing.T) {
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
+	is.Equal(err.Error(), "server returned a non-200 status code")
+	is.Equal(err.Errors(), []string{"server returned a non-200 status code"})
+	is.Equal(err.Response().StatusCode, http.StatusInternalServerError)
 }
 
 func TestDoJSONBadRequestErr(t *testing.T) {
@@ -77,9 +79,14 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
 		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{
-			"errors": [{
-				"message": "miscellaneous message as to why the the request was bad"
-			}]
+			"errors": [
+				{
+					"message": "miscellaneous message as to why the the request was bad"
+				},
+				{
+					"message": "secondary message"
+				}
+			]
 		}`)
 	}))
 	defer srv.Close()
@@ -93,6 +100,11 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.Equal(calls, 1) // calls
 	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+	is.Equal(err.Errors(), []string{
+		"graphql: miscellaneous message as to why the the request was bad",
+		"graphql: secondary message",
+	})
+	is.Equal(err.Response().StatusCode, http.StatusOK)
 }
 
 func TestQueryJSON(t *testing.T) {
