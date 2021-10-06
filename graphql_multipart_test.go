@@ -99,9 +99,14 @@ func TestDoErr(t *testing.T) {
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
 		_, _ = io.WriteString(w, `{
-			"errors": [{
-				"message": "Something went wrong"
-			}]
+			"errors": [
+				{
+					"message": "miscellaneous message as to why the the request was bad"
+				},
+				{
+					"message": "secondary message"
+				}
+			]
 		}`)
 	}))
 	defer srv.Close()
@@ -114,7 +119,10 @@ func TestDoErr(t *testing.T) {
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.True(err != nil)
-	is.Equal(err.Error(), "graphql: Something went wrong")
+	is.Equal(err.Errors(), []string{
+		"graphql: miscellaneous message as to why the the request was bad",
+		"graphql: secondary message",
+	})
 }
 
 func TestDoServerErr(t *testing.T) {
@@ -137,7 +145,9 @@ func TestDoServerErr(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	is.Equal(err.Error(), "graphql: server returned a non-200 status code: 500")
+	is.Equal(err.Error(), "request failed with status: 500 Internal Server Error")
+	is.Equal(err.Errors(), []string{"request failed with status: 500 Internal Server Error"})
+	is.Equal(err.Response().StatusCode, http.StatusInternalServerError)
 }
 
 func TestDoBadRequestErr(t *testing.T) {
@@ -148,11 +158,16 @@ func TestDoBadRequestErr(t *testing.T) {
 		is.Equal(r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{
-			"errors": [{
-				"message": "miscellaneous message as to why the the request was bad"
-			}]
+			"errors": [
+				{
+					"message": "miscellaneous message as to why the the request was bad"
+				},
+				{
+					"message": "secondary message"
+				}
+			]
 		}`)
 	}))
 	defer srv.Close()
@@ -165,6 +180,11 @@ func TestDoBadRequestErr(t *testing.T) {
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
 	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+	is.Equal(err.Errors(), []string{
+		"graphql: miscellaneous message as to why the the request was bad",
+		"graphql: secondary message",
+	})
+	is.Equal(err.Response().StatusCode, http.StatusOK)
 }
 
 func TestDoNoResponse(t *testing.T) {
