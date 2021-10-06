@@ -148,7 +148,7 @@ func TestDoBadRequestErr(t *testing.T) {
 		is.Equal(r.Method, http.MethodPost)
 		query := r.FormValue("query")
 		is.Equal(query, `query {}`)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"

@@ -75,7 +75,7 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 		b, err := ioutil.ReadAll(r.Body)
 		is.NoErr(err)
 		is.Equal(string(b), `{"query":"query {}","variables":null}`+"\n")
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusOK)
 		_, _ = io.WriteString(w, `{
 			"errors": [{
 				"message": "miscellaneous message as to why the the request was bad"
