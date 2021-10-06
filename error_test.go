@@ -21,7 +21,9 @@ func TestNewRequestError(t *testing.T) {
 
 func TestRequestErrorResponse(t *testing.T) {
 	is := is.New(t)
-	response := &http.Response{}
+	response := &http.Response{
+		Status: http.StatusText(http.StatusNotFound),
+	}
 
 	err := NewRequestError(response)
 
@@ -31,22 +33,26 @@ func TestRequestErrorResponse(t *testing.T) {
 
 func TestRequestErrorError(t *testing.T) {
 	is := is.New(t)
-	response := &http.Response{}
+	response := &http.Response{
+		Status: http.StatusText(http.StatusNotFound),
+	}
 
 	err := NewRequestError(response)
 
 	is.True(err != nil)
-	is.Equal(err.Error(), FailedHTTPRequestErrorMessage)
+	is.Equal(err.Error(), "request failed with status: Not Found")
 }
 
 func TestRequestErrorErrors(t *testing.T) {
 	is := is.New(t)
-	response := &http.Response{}
+	response := &http.Response{
+		Status: http.StatusText(http.StatusNotFound),
+	}
 
 	err := NewRequestError(response)
 
 	is.True(err != nil)
-	is.Equal(err.Errors(), []string{FailedHTTPRequestErrorMessage})
+	is.Equal(err.Errors(), []string{"request failed with status: Not Found"})
 }
 
 func TestNewExecutionError(t *testing.T) {

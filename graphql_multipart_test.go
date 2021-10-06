@@ -145,8 +145,8 @@ func TestDoServerErr(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-	is.Equal(err.Error(), "server returned a non-200 status code")
-	is.Equal(err.Errors(), []string{"server returned a non-200 status code"})
+	is.Equal(err.Error(), "request failed with status: 500 Internal Server Error")
+	is.Equal(err.Errors(), []string{"request failed with status: 500 Internal Server Error"})
 	is.Equal(err.Response().StatusCode, http.StatusInternalServerError)
 }
 

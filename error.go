@@ -1,6 +1,7 @@
 package graphql
 
 import (
+	"fmt"
 	"net/http"
 )
 
@@ -25,12 +26,7 @@ type (
 	}
 )
 
-const (
-	FailedHTTPRequestErrorMessage = "server returned a non-200 status code"
-)
-
 var (
-
 	// Type assertions
 	_ Error = &RequestError{}
 	_ Error = &ExecutionError{}
@@ -48,11 +44,11 @@ func (r *RequestError) Response() *http.Response {
 }
 
 func (r *RequestError) Error() string {
-	return FailedHTTPRequestErrorMessage
+	return fmt.Sprintf("request failed with status: %s", r.response.Status)
 }
 
 func (r *RequestError) Errors() []string {
-	return []string{FailedHTTPRequestErrorMessage}
+	return []string{r.Error()}
 }
 
 func NewExecutionError(message error) *ExecutionError {
