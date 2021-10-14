@@ -3,6 +3,7 @@ package graphql
 import (
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 type (
@@ -20,6 +21,11 @@ type (
 		message error
 	}
 
+	graphErr struct {
+		Message string
+		Path    []string
+	}
+
 	GraphQLError struct {
 		errors   []graphErr
 		response *http.Response
@@ -32,6 +38,19 @@ var (
 	_ Error = &ExecutionError{}
 	_ Error = &GraphQLError{}
 )
+
+// add path to error string
+func (e graphErr) Error() string {
+	if len(e.Path) > 0 {
+		return e.ErrPath() + ": " + e.Message
+	}
+
+	return "graphql: " + e.Message
+}
+
+func (e graphErr) ErrPath() string {
+	return strings.Join(e.Path, ".")
+}
 
 func NewRequestError(response *http.Response) *RequestError {
 	return &RequestError{

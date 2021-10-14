@@ -84,6 +84,7 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 					"message": "miscellaneous message as to why the the request was bad"
 				},
 				{
+					"path": ["field", "path"],
 					"message": "secondary message"
 				}
 			]
@@ -102,7 +103,7 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
 	is.Equal(err.Errors(), []string{
 		"graphql: miscellaneous message as to why the the request was bad",
-		"graphql: secondary message",
+		"field.path: secondary message",
 	})
 	is.Equal(err.Response().StatusCode, http.StatusOK)
 }
