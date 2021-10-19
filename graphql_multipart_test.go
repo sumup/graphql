@@ -57,7 +57,7 @@ func TestDoUseMultipartForm(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, NewRequest("query {}"), &responseData)
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 	is.Equal(responseData["something"], "yes")
@@ -84,7 +84,7 @@ func TestImmediatelyCloseReqBody(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, NewRequest("query {}"), &responseData)
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 	is.Equal(responseData["something"], "yes")
@@ -102,9 +102,6 @@ func TestDoErr(t *testing.T) {
 			"errors": [
 				{
 					"message": "miscellaneous message as to why the the request was bad"
-				},
-				{
-					"message": "secondary message"
 				}
 			]
 		}`)
@@ -117,11 +114,10 @@ func TestDoErr(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, NewRequest("query {}"), &responseData)
 	is.True(err != nil)
 	is.Equal(err.Errors(), []string{
 		"graphql: miscellaneous message as to why the the request was bad",
-		"graphql: secondary message",
 	})
 }
 
@@ -144,7 +140,7 @@ func TestDoServerErr(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, NewRequest("query {}"), &responseData)
 	is.Equal(err.Error(), "request failed with status: 500 Internal Server Error")
 	is.Equal(err.Errors(), []string{"request failed with status: 500 Internal Server Error"})
 	is.Equal(err.Response().StatusCode, http.StatusInternalServerError)
@@ -163,9 +159,6 @@ func TestDoBadRequestErr(t *testing.T) {
 			"errors": [
 				{
 					"message": "miscellaneous message as to why the the request was bad"
-				},
-				{
-					"message": "secondary message"
 				}
 			]
 		}`)
@@ -178,11 +171,10 @@ func TestDoBadRequestErr(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, NewRequest("query {}"), &responseData)
 	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
 	is.Equal(err.Errors(), []string{
 		"graphql: miscellaneous message as to why the the request was bad",
-		"graphql: secondary message",
 	})
 	is.Equal(err.Response().StatusCode, http.StatusOK)
 }
@@ -208,7 +200,8 @@ func TestDoNoResponse(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
-	err := client.Run(ctx, &Request{q: "query {}"}, nil)
+	err := client.Run(ctx, NewRequest("query {}"), nil)
+
 	is.NoErr(err)
 	is.Equal(calls, 1) // calls
 }
@@ -236,7 +229,7 @@ func TestQuery(t *testing.T) {
 
 	// check variables
 	is.True(req != nil)
-	is.Equal(req.vars["username"], "matryer")
+	is.Equal(req.Vars()["username"], "matryer")
 
 	var resp struct {
 		Value string

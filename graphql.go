@@ -39,28 +39,50 @@ import (
 	"mime/multipart"
 	"net/http"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 )
 
-// Client is a client for interacting with a GraphQL API.
-type Client struct {
-	endpoint         string
-	httpClient       CustomHttpClient
-	useMultipartForm bool
+type (
+	// Client is a client for interacting with a GraphQL API.
+	Client struct {
+		endpoint         string
+		httpClient       CustomHttpClient
+		useMultipartForm bool
 
-	// closeReq will close the request body immediately allowing for reuse of client
-	closeReq bool
+		// closeReq will close the request body immediately allowing for reuse of client
+		closeReq bool
 
-	// Log is called with various debug information.
-	// To log to standard out, use:
-	//  client.Log = func(s string) { log.Println(s) }
-	Log func(s string)
-}
+		// Log is called with various debug information.
+		// To log to standard out, use:
+		//  client.Log = func(s string) { log.Println(s) }
+		Log func(s string)
+	}
 
-// CustomHttpClient allows a custom http.Client to be used other than the default one provided by golang.
-type CustomHttpClient interface {
-	Do(*http.Request) (*http.Response, error)
-}
+	// CustomHttpClient allows a custom http.Client to be used other than the default one provided by golang.
+	CustomHttpClient interface {
+		Do(*http.Request) (*http.Response, error)
+	}
+
+	// ClientOption are functions that are passed into NewClient to
+	// modify the behaviour of the Client.
+	ClientOption func(*Client)
+
+	graphResponse struct {
+		Data   interface{} `json:"data"`
+		Errors []graphErr  `json:"errors"`
+	}
+
+	graphValidationMessage struct {
+		Code    string  `json:"code"`
+		Message *string `json:"message"`
+	}
+	graphMutationPayload struct {
+		Messages   []*graphValidationMessage `json:"messages"`
+		Result     interface{}               `json:"result"`
+		Successful bool                      `json:"successful"`
+	}
+)
 
 // NewClient makes a new Client capable of making GraphQL requests.
 // In case no option for http.Client is provided the default one is used in place.
@@ -78,6 +100,30 @@ func NewClient(endpoint string, opts ...ClientOption) *Client {
 	return c
 }
 
+// WithHTTPClient specifies the underlying http.Client to use when
+// making requests.
+//  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
+func WithHTTPClient(httpclient CustomHttpClient) ClientOption {
+	return func(client *Client) {
+		client.httpClient = httpclient
+	}
+}
+
+// UseMultipartForm uses multipart/form-data and activates support for
+// files.
+func UseMultipartForm() ClientOption {
+	return func(client *Client) {
+		client.useMultipartForm = true
+	}
+}
+
+//ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
+func ImmediatelyCloseReqBody() ClientOption {
+	return func(client *Client) {
+		client.closeReq = true
+	}
+}
+
 func (c *Client) logf(format string, args ...interface{}) {
 	c.Log(fmt.Sprintf(format, args...))
 }
@@ -87,22 +133,24 @@ func (c *Client) logf(format string, args ...interface{}) {
 // Pass in a nil response object to skip response parsing.
 // If the request fails or the server returns an error, the first error
 // will be returned.
-func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) Error {
+func (c *Client) Run(ctx context.Context, op Operation, resp interface{}) Error {
 	select {
 	case <-ctx.Done():
 		return NewExecutionError(ctx.Err())
 	default:
 	}
-	if len(req.files) > 0 && !c.useMultipartForm {
+	if len(op.Files()) > 0 && !c.useMultipartForm {
 		return NewExecutionError(errors.New("cannot send files with PostFields option"))
 	}
 	if c.useMultipartForm {
-		return c.runWithPostFields(ctx, req, resp)
+		return c.runWithPostFields(ctx, op, resp)
 	}
-	return c.runWithJSON(ctx, req, resp)
+	return c.runWithJSON(ctx, op, resp)
 }
 
-func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}) Error {
+func (c *Client) runWithJSON(ctx context.Context, op Operation, resp interface{}) Error {
+	req := op.Request()
+
 	var requestBody bytes.Buffer
 	requestBodyObj := struct {
 		Query     string                 `json:"query"`
@@ -113,11 +161,6 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 	}
 	if err := json.NewEncoder(&requestBody).Encode(requestBodyObj); err != nil {
 		return NewExecutionError(errors.Wrap(err, "encode body"))
-	}
-	c.logf(">> variables: %v", req.vars)
-	c.logf(">> query: %s", req.q)
-	gr := &graphResponse{
-		Data: resp,
 	}
 	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
 	if err != nil {
@@ -146,16 +189,57 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return NewExecutionError(errors.Wrap(err, "reading body"))
 	}
 	c.logf("<< %s", buf.String())
-	if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
-		return NewExecutionError(errors.Wrap(err, "decoding response"))
+
+	var gr *graphResponse
+	switch op.(type) {
+	case *Mutation:
+		var results struct {
+			Data map[string]graphMutationPayload
+		}
+
+		if err := json.NewDecoder(&buf).Decode(&results); err != nil {
+			return NewExecutionError(errors.Wrap(err, "decoding response"))
+		}
+		gr = &graphResponse{}
+
+		for _, result := range results.Data {
+			if !result.Successful {
+				messages := result.Messages
+				errors := make([]graphErr, len(messages))
+
+				for i, message := range messages {
+					errors[i] = graphErr{
+						Message: emptyOrString(message.Message),
+						Code:    message.Code,
+					}
+				}
+
+				gr.Errors = append(gr.Errors, errors...)
+			} else {
+				err := mapstructure.Decode(results.Data, &resp)
+				if err != nil {
+					return NewExecutionError(errors.Wrap(err, "decoding response"))
+				}
+			}
+			// The code above only supports payloads with a single mutation
+			break
+		}
+
+	default:
+		gr = &graphResponse{Data: resp}
+		if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
+			return NewExecutionError(errors.Wrap(err, "decoding response"))
+		}
 	}
+
 	if len(gr.Errors) > 0 {
 		return NewGraphQLError(gr.Errors, res)
 	}
 	return nil
 }
 
-func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp interface{}) Error {
+func (c *Client) runWithPostFields(ctx context.Context, op Operation, resp interface{}) Error {
+	req := op.Request()
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
 	if err := writer.WriteField("query", req.q); err != nil {
@@ -225,96 +309,9 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 	return nil
 }
 
-// WithHTTPClient specifies the underlying http.Client to use when
-// making requests.
-//  NewClient(endpoint, WithHTTPClient(specificHTTPClient))
-func WithHTTPClient(httpclient CustomHttpClient) ClientOption {
-	return func(client *Client) {
-		client.httpClient = httpclient
+func emptyOrString(pointer *string) string {
+	if pointer == nil {
+		return ""
 	}
-}
-
-// UseMultipartForm uses multipart/form-data and activates support for
-// files.
-func UseMultipartForm() ClientOption {
-	return func(client *Client) {
-		client.useMultipartForm = true
-	}
-}
-
-//ImmediatelyCloseReqBody will close the req body immediately after each request body is ready
-func ImmediatelyCloseReqBody() ClientOption {
-	return func(client *Client) {
-		client.closeReq = true
-	}
-}
-
-// ClientOption are functions that are passed into NewClient to
-// modify the behaviour of the Client.
-type ClientOption func(*Client)
-
-type graphResponse struct {
-	Data   interface{}
-	Errors []graphErr
-}
-
-// Request is a GraphQL request.
-type Request struct {
-	q     string
-	vars  map[string]interface{}
-	files []File
-
-	// Header represent any request headers that will be set
-	// when the request is made.
-	Header http.Header
-}
-
-// NewRequest makes a new Request with the specified string.
-func NewRequest(q string) *Request {
-	req := &Request{
-		q:      q,
-		Header: make(map[string][]string),
-	}
-	return req
-}
-
-// Var sets a variable.
-func (req *Request) Var(key string, value interface{}) {
-	if req.vars == nil {
-		req.vars = make(map[string]interface{})
-	}
-	req.vars[key] = value
-}
-
-// Vars gets the variables for this Request.
-func (req *Request) Vars() map[string]interface{} {
-	return req.vars
-}
-
-// Files gets the files in this request.
-func (req *Request) Files() []File {
-	return req.files
-}
-
-// Query gets the query string of this request.
-func (req *Request) Query() string {
-	return req.q
-}
-
-// File sets a file to upload.
-// Files are only supported with a Client that was created with
-// the UseMultipartForm option.
-func (req *Request) File(fieldname, filename string, r io.Reader) {
-	req.files = append(req.files, File{
-		Field: fieldname,
-		Name:  filename,
-		R:     r,
-	})
-}
-
-// File represents a file to upload.
-type File struct {
-	Field string
-	Name  string
-	R     io.Reader
+	return *pointer
 }
