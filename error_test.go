@@ -2,6 +2,7 @@ package graphql
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/matryer/is"
@@ -139,7 +140,7 @@ func TestGraphQLErrorError(t *testing.T) {
 	err := NewGraphQLError(graphqlErrors, response)
 
 	is.True(err != nil)
-	is.Equal(err.Error(), graphqlErrors[0].Error())
+	is.Equal(err.Error(), graphqlErrors[1].Error())
 }
 
 func TestGraphQLErrorErrorEmptyList(t *testing.T) {
@@ -168,4 +169,58 @@ func TestGraphQLErrorErrors(t *testing.T) {
 		graphqlErrors[0].Error(),
 		graphqlErrors[1].Error(),
 	})
+}
+
+func TestGraphQLErrorCode(t *testing.T) {
+	is := is.New(t)
+	graphqlErrors := []graphErr{
+		{
+			Message: "secondary message",
+			Extentions: graphExt{
+				Code: "ANOTHER_ERROR_CODE",
+			},
+		},
+		{
+			Code:    "ERROR_CODE",
+			Message: "miscellaneous message as to why the the request was bad",
+			Path:    []string{"field", "path"},
+		},
+	}
+	response := &http.Response{}
+
+	err := NewGraphQLError(graphqlErrors, response)
+
+	is.True(err != nil)
+	is.Equal(err.Errors(), []string{
+		graphqlErrors[0].Error(),
+		graphqlErrors[1].Error(),
+	})
+	is.Equal(err.Code(), strings.ToLower(graphqlErrors[1].Code))
+}
+
+func TestGraphQLMutationError(t *testing.T) {
+	is := is.New(t)
+	graphqlErrors := []graphErr{
+		{
+			Message: "secondary message",
+			Extentions: graphExt{
+				Code: "ANOTHER_ERROR_CODE",
+			},
+		},
+		{
+			Code:    "ERROR_CODE",
+			Message: "miscellaneous message as to why the the request failed",
+			Path:    []string{"field", "path"},
+		},
+	}
+	response := &http.Response{}
+
+	err := NewGraphQLError(graphqlErrors, response)
+
+	is.True(err != nil)
+	is.Equal(err.Errors(), []string{
+		graphqlErrors[0].Error(),
+		graphqlErrors[1].Error(),
+	})
+	is.Equal(err.Code(), strings.ToLower(graphqlErrors[1].Code))
 }

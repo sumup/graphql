@@ -11,6 +11,7 @@ type (
 		error
 		Response() *http.Response
 		Errors() []string
+		Code() string
 	}
 
 	RequestError struct {
@@ -21,14 +22,20 @@ type (
 		message error
 	}
 
-	graphErr struct {
-		Message string
-		Path    []string
-	}
-
 	GraphQLError struct {
 		errors   []graphErr
 		response *http.Response
+	}
+
+	graphErr struct {
+		Code       string
+		Extentions graphExt
+		Message    string
+		Path       []string
+	}
+
+	graphExt struct {
+		Code string
 	}
 )
 
@@ -39,13 +46,33 @@ var (
 	_ Error = &GraphQLError{}
 )
 
-// add path to error string
 func (e graphErr) Error() string {
-	if len(e.Path) > 0 {
-		return e.ErrPath() + ": " + e.Message
+	code := e.ErrCode()
+	message := e.Message
+
+	if len(code) > 0 {
+		message = message + " code: " + code
 	}
 
-	return "graphql: " + e.Message
+	if len(e.Path) > 0 {
+		return e.ErrPath() + ": " + message
+	}
+
+	return "graphql: " + message
+}
+
+func (e graphErr) ErrCode() string {
+	code := e.Code
+	if len(code) > 0 {
+		return strings.ToLower(code)
+	}
+
+	code = e.Extentions.Code
+	if len(code) > 0 {
+		return strings.ToLower(code)
+	}
+
+	return ""
 }
 
 func (e graphErr) ErrPath() string {
@@ -70,6 +97,10 @@ func (r *RequestError) Errors() []string {
 	return []string{r.Error()}
 }
 
+func (r *RequestError) Code() string {
+	return http.StatusText(r.response.StatusCode)
+}
+
 func NewExecutionError(message error) *ExecutionError {
 	return &ExecutionError{
 		message: message,
@@ -88,6 +119,10 @@ func (e *ExecutionError) Errors() []string {
 	return []string{e.message.Error()}
 }
 
+func (e *ExecutionError) Code() string {
+	return ""
+}
+
 func NewGraphQLError(errors []graphErr, response *http.Response) *GraphQLError {
 	return &GraphQLError{
 		errors:   errors,
@@ -99,9 +134,21 @@ func (g *GraphQLError) Response() *http.Response {
 	return g.response
 }
 
+func (g *GraphQLError) Code() string {
+	errors := g.errors
+
+	if len(errors) > 0 {
+		return errors[len(errors)-1].ErrCode()
+	}
+
+	return ""
+}
+
 func (g *GraphQLError) Error() string {
-	if len(g.errors) > 0 {
-		return g.errors[0].Error()
+	errors := g.errors
+
+	if len(errors) > 0 {
+		return errors[len(errors)-1].Error()
 	}
 
 	return ""
