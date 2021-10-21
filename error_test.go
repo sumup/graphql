@@ -99,7 +99,7 @@ func TestExecutionErrorErrors(t *testing.T) {
 
 func TestNewGraphQLError(t *testing.T) {
 	is := is.New(t)
-	graphqlErrors := []graphErr{
+	graphqlErrors := []GraphErr{
 		{Message: "some error"},
 		{Message: "other error"},
 	}
@@ -117,7 +117,7 @@ func TestNewGraphQLError(t *testing.T) {
 
 func TestGraphQLErrorResponse(t *testing.T) {
 	is := is.New(t)
-	graphqlErrors := []graphErr{
+	graphqlErrors := []GraphErr{
 		{Message: "some error"},
 		{Message: "other error"},
 	}
@@ -131,7 +131,7 @@ func TestGraphQLErrorResponse(t *testing.T) {
 
 func TestGraphQLErrorError(t *testing.T) {
 	is := is.New(t)
-	graphqlErrors := []graphErr{
+	graphqlErrors := []GraphErr{
 		{Message: "some error"},
 		{Message: "other error"},
 	}
@@ -145,7 +145,7 @@ func TestGraphQLErrorError(t *testing.T) {
 
 func TestGraphQLErrorErrorEmptyList(t *testing.T) {
 	is := is.New(t)
-	graphqlErrors := []graphErr{}
+	graphqlErrors := []GraphErr{}
 	response := &http.Response{}
 
 	err := NewGraphQLError(graphqlErrors, response)
@@ -156,7 +156,7 @@ func TestGraphQLErrorErrorEmptyList(t *testing.T) {
 
 func TestGraphQLErrorErrors(t *testing.T) {
 	is := is.New(t)
-	graphqlErrors := []graphErr{
+	graphqlErrors := []GraphErr{
 		{Message: "some error"},
 		{Message: "other error"},
 	}
@@ -173,10 +173,10 @@ func TestGraphQLErrorErrors(t *testing.T) {
 
 func TestGraphQLErrorCode(t *testing.T) {
 	is := is.New(t)
-	graphqlErrors := []graphErr{
+	graphqlErrors := []GraphErr{
 		{
 			Message: "secondary message",
-			Extentions: graphExt{
+			Extentions: GraphExt{
 				Code: "ANOTHER_ERROR_CODE",
 			},
 		},
@@ -200,10 +200,10 @@ func TestGraphQLErrorCode(t *testing.T) {
 
 func TestGraphQLMutationError(t *testing.T) {
 	is := is.New(t)
-	graphqlErrors := []graphErr{
+	graphqlErrors := []GraphErr{
 		{
 			Message: "secondary message",
-			Extentions: graphExt{
+			Extentions: GraphExt{
 				Code: "ANOTHER_ERROR_CODE",
 			},
 		},

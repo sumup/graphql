@@ -70,7 +70,7 @@ type (
 
 	graphResponse struct {
 		Data   interface{} `json:"data"`
-		Errors []graphErr  `json:"errors"`
+		Errors []GraphErr  `json:"errors"`
 	}
 
 	graphValidationMessage struct {
@@ -205,10 +205,10 @@ func (c *Client) runWithJSON(ctx context.Context, op Operation, resp interface{}
 		for _, result := range results.Data {
 			if !result.Successful {
 				messages := result.Messages
-				errors := make([]graphErr, len(messages))
+				errors := make([]GraphErr, len(messages))
 
 				for i, message := range messages {
-					errors[i] = graphErr{
+					errors[i] = GraphErr{
 						Message: emptyOrString(message.Message),
 						Code:    message.Code,
 					}
