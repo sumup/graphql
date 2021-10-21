@@ -23,18 +23,18 @@ type (
 	}
 
 	GraphQLError struct {
-		errors   []graphErr
+		errors   []GraphErr
 		response *http.Response
 	}
 
-	graphErr struct {
+	GraphErr struct {
 		Code       string
-		Extentions graphExt
+		Extentions GraphExt
 		Message    string
 		Path       []string
 	}
 
-	graphExt struct {
+	GraphExt struct {
 		Code string
 	}
 )
@@ -46,7 +46,7 @@ var (
 	_ Error = &GraphQLError{}
 )
 
-func (e graphErr) Error() string {
+func (e GraphErr) Error() string {
 	code := e.ErrCode()
 	message := e.Message
 
@@ -61,7 +61,7 @@ func (e graphErr) Error() string {
 	return "graphql: " + message
 }
 
-func (e graphErr) ErrCode() string {
+func (e GraphErr) ErrCode() string {
 	code := e.Code
 	if len(code) > 0 {
 		return strings.ToLower(code)
@@ -75,7 +75,7 @@ func (e graphErr) ErrCode() string {
 	return ""
 }
 
-func (e graphErr) ErrPath() string {
+func (e GraphErr) ErrPath() string {
 	return strings.Join(e.Path, ".")
 }
 
@@ -123,7 +123,7 @@ func (e *ExecutionError) Code() string {
 	return ""
 }
 
-func NewGraphQLError(errors []graphErr, response *http.Response) *GraphQLError {
+func NewGraphQLError(errors []GraphErr, response *http.Response) *GraphQLError {
 	return &GraphQLError{
 		errors:   errors,
 		response: response,
