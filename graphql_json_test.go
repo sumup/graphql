@@ -298,9 +298,9 @@ func TestDoJSONMutationErr(t *testing.T) {
 	`)
 	err := client.Run(ctx, mutation, &responseData)
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "graphql: An error occurred code: internal_server_error")
+	is.Equal(err.Error(), "An error occurred")
 	is.Equal(err.Errors(), []string{
-		"graphql: An error occurred code: internal_server_error",
+		"An error occurred",
 	})
 	is.Equal(err.Response().StatusCode, http.StatusOK)
 }
