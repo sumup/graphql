@@ -47,18 +47,12 @@ var (
 )
 
 func (e GraphErr) Error() string {
-	code := e.ErrCode()
 	message := e.Message
-
-	if len(code) > 0 {
-		message = message + " code: " + code
-	}
-
 	if len(e.Path) > 0 {
 		return e.ErrPath() + ": " + message
 	}
 
-	return "graphql: " + message
+	return message
 }
 
 func (e GraphErr) ErrCode() string {

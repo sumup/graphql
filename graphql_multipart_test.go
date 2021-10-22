@@ -117,7 +117,7 @@ func TestDoErr(t *testing.T) {
 	err := client.Run(ctx, NewRequest("query {}"), &responseData)
 	is.True(err != nil)
 	is.Equal(err.Errors(), []string{
-		"graphql: miscellaneous message as to why the the request was bad",
+		"miscellaneous message as to why the the request was bad",
 	})
 }
 
@@ -172,9 +172,9 @@ func TestDoBadRequestErr(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, NewRequest("query {}"), &responseData)
-	is.Equal(err.Error(), "graphql: miscellaneous message as to why the the request was bad")
+	is.Equal(err.Error(), "miscellaneous message as to why the the request was bad")
 	is.Equal(err.Errors(), []string{
-		"graphql: miscellaneous message as to why the the request was bad",
+		"miscellaneous message as to why the the request was bad",
 	})
 	is.Equal(err.Response().StatusCode, http.StatusOK)
 }
