@@ -54,12 +54,7 @@ var (
 )
 
 func (e GraphErr) Error() string {
-	message := e.Message
-	if len(e.Path) > 0 {
-		return e.ErrPath() + ": " + message
-	}
-
-	return message
+	return e.Message
 }
 
 func (e GraphErr) ErrCode() string {
