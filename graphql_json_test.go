@@ -98,11 +98,18 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	query := NewRequest("query {}")
 	err := client.Run(ctx, query, &responseData)
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "field.path: miscellaneous message as to why the the request was bad")
+	is.Equal(err.Error(), "miscellaneous message as to why the the request was bad")
 	is.Equal(err.Errors(), []string{
-		"field.path: miscellaneous message as to why the the request was bad",
+		"miscellaneous message as to why the the request was bad",
 	})
 	is.Equal(err.Response().StatusCode, http.StatusOK)
+	is.Equal(err.Details(), []ErrorDetail{
+		{
+			Code:    "",
+			Message: "miscellaneous message as to why the the request was bad",
+			Domain:  "field.path",
+		},
+	})
 }
 
 func TestQueryJSON(t *testing.T) {

@@ -12,6 +12,7 @@ type (
 		Response() *http.Response
 		Errors() []string
 		Code() string
+		Details() []ErrorDetail
 	}
 
 	RequestError struct {
@@ -37,6 +38,12 @@ type (
 	GraphExt struct {
 		Code string
 	}
+
+	ErrorDetail struct {
+		Code    string
+		Message string
+		Domain  string
+	}
 )
 
 var (
@@ -47,12 +54,7 @@ var (
 )
 
 func (e GraphErr) Error() string {
-	message := e.Message
-	if len(e.Path) > 0 {
-		return e.ErrPath() + ": " + message
-	}
-
-	return message
+	return e.Message
 }
 
 func (e GraphErr) ErrCode() string {
@@ -71,6 +73,14 @@ func (e GraphErr) ErrCode() string {
 
 func (e GraphErr) ErrPath() string {
 	return strings.Join(e.Path, ".")
+}
+
+func (e GraphErr) ToErrorDetail() ErrorDetail {
+	return ErrorDetail{
+		Code:    e.ErrCode(),
+		Message: e.Message,
+		Domain:  e.ErrPath(),
+	}
 }
 
 func NewRequestError(response *http.Response) *RequestError {
@@ -95,6 +105,12 @@ func (r *RequestError) Code() string {
 	return http.StatusText(r.response.StatusCode)
 }
 
+func (r *RequestError) Details() []ErrorDetail {
+	return []ErrorDetail{
+		{Code: r.Code(), Message: r.Error()},
+	}
+}
+
 func NewExecutionError(message error) *ExecutionError {
 	return &ExecutionError{
 		message: message,
@@ -115,6 +131,12 @@ func (e *ExecutionError) Errors() []string {
 
 func (e *ExecutionError) Code() string {
 	return ""
+}
+
+func (e *ExecutionError) Details() []ErrorDetail {
+	return []ErrorDetail{
+		{Code: e.Code(), Message: e.Error()},
+	}
 }
 
 func NewGraphQLError(errors []GraphErr, response *http.Response) *GraphQLError {
@@ -152,6 +174,15 @@ func (g *GraphQLError) Errors() []string {
 	errors := []string{}
 	for _, err := range g.errors {
 		errors = append(errors, err.Error())
+	}
+
+	return errors
+}
+
+func (g *GraphQLError) Details() []ErrorDetail {
+	errors := []ErrorDetail{}
+	for _, err := range g.errors {
+		errors = append(errors, err.ToErrorDetail())
 	}
 
 	return errors

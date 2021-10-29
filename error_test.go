@@ -56,6 +56,23 @@ func TestRequestErrorErrors(t *testing.T) {
 	is.Equal(err.Errors(), []string{"request failed with status: Not Found"})
 }
 
+func TestRequestErrorDetails(t *testing.T) {
+	is := is.New(t)
+	response := &http.Response{
+		Status:     http.StatusText(http.StatusNotFound),
+		StatusCode: http.StatusNotFound,
+	}
+
+	err := NewRequestError(response)
+
+	is.True(err != nil)
+	is.Equal(len(err.Details()), 1)
+	is.Equal(err.Details()[0], ErrorDetail{
+		Code:    http.StatusText(http.StatusNotFound),
+		Message: "request failed with status: Not Found",
+	})
+}
+
 func TestNewExecutionError(t *testing.T) {
 	is := is.New(t)
 	message := errors.New("some error")
@@ -95,6 +112,20 @@ func TestExecutionErrorErrors(t *testing.T) {
 
 	is.True(err != nil)
 	is.Equal(err.Errors(), []string{message.Error()})
+}
+
+func TestExecutionErrorDetails(t *testing.T) {
+	is := is.New(t)
+	message := errors.New("some error")
+
+	err := NewExecutionError(message)
+
+	is.True(err != nil)
+	is.Equal(len(err.Details()), 1)
+	is.Equal(err.Details()[0], ErrorDetail{
+		Code:    "",
+		Message: message.Error(),
+	})
 }
 
 func TestNewGraphQLError(t *testing.T) {
@@ -223,4 +254,37 @@ func TestGraphQLMutationError(t *testing.T) {
 		graphqlErrors[1].Error(),
 	})
 	is.Equal(err.Code(), strings.ToLower(graphqlErrors[1].Code))
+}
+
+func TestGraphQLErrorDetails(t *testing.T) {
+	is := is.New(t)
+	graphqlErrors := []GraphErr{
+		{
+			Message: "secondary message",
+			Extentions: GraphExt{
+				Code: "ANOTHER_ERROR_CODE",
+			},
+		},
+		{
+			Code:    "ERROR_CODE",
+			Message: "miscellaneous message as to why the the request failed",
+			Path:    []string{"field", "path"},
+		},
+	}
+	response := &http.Response{}
+
+	err := NewGraphQLError(graphqlErrors, response)
+
+	is.True(err != nil)
+	is.Equal(len(err.Details()), 2)
+	is.Equal(err.Details()[0], ErrorDetail{
+		Code:    "another_error_code",
+		Message: "secondary message",
+		Domain:  "",
+	})
+	is.Equal(err.Details()[1], ErrorDetail{
+		Code:    "error_code",
+		Message: "miscellaneous message as to why the the request failed",
+		Domain:  "field.path",
+	})
 }
