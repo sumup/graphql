@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -63,8 +64,8 @@ func TestDoJSONServerError(t *testing.T) {
 	var responseData map[string]interface{}
 	err := client.Run(ctx, NewRequest("query {}"), &responseData)
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "request failed with status: 500 Internal Server Error")
-	is.Equal(err.Errors(), []string{"request failed with status: 500 Internal Server Error"})
+	is.Equal(err.Error(), "defaultRequest failed with status: 500 Internal Server Error")
+	is.Equal(err.Errors(), []string{"defaultRequest failed with status: 500 Internal Server Error"})
 	is.Equal(err.Response().StatusCode, http.StatusInternalServerError)
 }
 
@@ -82,7 +83,7 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 			"errors": [
 				{
 					"path": ["field", "path"],
-					"message": "miscellaneous message as to why the the request was bad"
+					"message": "miscellaneous message as to why the the defaultRequest was bad"
 				}
 			]
 		}`)
@@ -98,15 +99,15 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 	query := NewRequest("query {}")
 	err := client.Run(ctx, query, &responseData)
 	is.Equal(calls, 1) // calls
-	is.Equal(err.Error(), "miscellaneous message as to why the the request was bad")
+	is.Equal(err.Error(), "miscellaneous message as to why the the defaultRequest was bad")
 	is.Equal(err.Errors(), []string{
-		"miscellaneous message as to why the the request was bad",
+		"miscellaneous message as to why the the defaultRequest was bad",
 	})
 	is.Equal(err.Response().StatusCode, http.StatusOK)
 	is.Equal(err.Details(), []ErrorDetail{
 		{
 			Code:    "",
-			Message: "miscellaneous message as to why the the request was bad",
+			Message: "miscellaneous message as to why the the defaultRequest was bad",
 			Domain:  "field.path",
 		},
 	})
@@ -131,11 +132,11 @@ func TestQueryJSON(t *testing.T) {
 	client := NewClient(srv.URL)
 
 	req := NewRequest("query {}")
-	req.Var("username", "matryer")
+	req.Request().Var("username", "matryer")
 
 	// check variables
 	is.True(req != nil)
-	is.Equal(req.Vars()["username"], "matryer") // nolint: staticcheck
+	is.Equal(req.Request().Vars()["username"], "matryer") // nolint: staticcheck
 
 	var resp struct {
 		Value string
@@ -148,6 +149,7 @@ func TestQueryJSON(t *testing.T) {
 }
 
 func TestDoJSONMutation(t *testing.T) {
+	reflect.TypeOf(GraphResponse{})
 	is := is.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -330,7 +332,7 @@ func TestHeader(t *testing.T) {
 	client := NewClient(srv.URL)
 
 	req := NewRequest("query {}")
-	req.Header("X-Custom-Header", "123")
+	req.Request().Header("X-Custom-Header", "123")
 
 	var resp struct {
 		Value string

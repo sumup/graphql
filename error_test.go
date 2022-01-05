@@ -16,7 +16,6 @@ func TestNewRequestError(t *testing.T) {
 
 	err := NewRequestError(response)
 
-	is.True(err != nil)
 	is.Equal(*err, expected)
 }
 
@@ -41,7 +40,7 @@ func TestRequestErrorError(t *testing.T) {
 	err := NewRequestError(response)
 
 	is.True(err != nil)
-	is.Equal(err.Error(), "request failed with status: Not Found")
+	is.Equal(err.Error(), "defaultRequest failed with status: Not Found")
 }
 
 func TestRequestErrorErrors(t *testing.T) {
@@ -53,7 +52,7 @@ func TestRequestErrorErrors(t *testing.T) {
 	err := NewRequestError(response)
 
 	is.True(err != nil)
-	is.Equal(err.Errors(), []string{"request failed with status: Not Found"})
+	is.Equal(err.Errors(), []string{"defaultRequest failed with status: Not Found"})
 }
 
 func TestRequestErrorDetails(t *testing.T) {
@@ -69,7 +68,7 @@ func TestRequestErrorDetails(t *testing.T) {
 	is.Equal(len(err.Details()), 1)
 	is.Equal(err.Details()[0], ErrorDetail{
 		Code:    http.StatusText(http.StatusNotFound),
-		Message: "request failed with status: Not Found",
+		Message: "defaultRequest failed with status: Not Found",
 	})
 }
 
@@ -80,7 +79,6 @@ func TestNewExecutionError(t *testing.T) {
 
 	err := NewExecutionError(message)
 
-	is.True(err != nil)
 	is.Equal(*err, expected)
 }
 
@@ -142,7 +140,6 @@ func TestNewGraphQLError(t *testing.T) {
 
 	err := NewGraphQLError(graphqlErrors, response)
 
-	is.True(err != nil)
 	is.Equal(*err, expected)
 }
 
@@ -213,7 +210,7 @@ func TestGraphQLErrorCode(t *testing.T) {
 		},
 		{
 			Code:    "ERROR_CODE",
-			Message: "miscellaneous message as to why the the request was bad",
+			Message: "miscellaneous message as to why the the defaultRequest was bad",
 			Path:    []string{"field", "path"},
 		},
 	}
@@ -240,7 +237,7 @@ func TestGraphQLMutationError(t *testing.T) {
 		},
 		{
 			Code:    "ERROR_CODE",
-			Message: "miscellaneous message as to why the the request failed",
+			Message: "miscellaneous message as to why the the defaultRequest failed",
 			Path:    []string{"field", "path"},
 		},
 	}
@@ -267,7 +264,7 @@ func TestGraphQLErrorDetails(t *testing.T) {
 		},
 		{
 			Code:    "ERROR_CODE",
-			Message: "miscellaneous message as to why the the request failed",
+			Message: "miscellaneous message as to why the the defaultRequest failed",
 			Path:    []string{"field", "path"},
 		},
 	}
@@ -284,7 +281,7 @@ func TestGraphQLErrorDetails(t *testing.T) {
 	})
 	is.Equal(err.Details()[1], ErrorDetail{
 		Code:    "error_code",
-		Message: "miscellaneous message as to why the the request failed",
+		Message: "miscellaneous message as to why the the defaultRequest failed",
 		Domain:  "field.path",
 	})
 }

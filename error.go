@@ -94,7 +94,7 @@ func (r *RequestError) Response() *http.Response {
 }
 
 func (r *RequestError) Error() string {
-	return fmt.Sprintf("request failed with status: %s", r.response.Status)
+	return fmt.Sprintf("defaultRequest failed with status: %s", r.response.Status)
 }
 
 func (r *RequestError) Errors() []string {
