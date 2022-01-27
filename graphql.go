@@ -42,7 +42,7 @@ type (
 
 	GraphResponse struct {
 		Data   interface{} `json:"data"`
-		Errors []GraphErr  `json:"errors"`
+		Errors []GraphError  `json:"errors"`
 	}
 
 	graphValidationMessage struct {

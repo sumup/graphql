@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matryer/is"
+	assertIs "github.com/matryer/is"
 )
 
 func TestWithClient(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	testClient := &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
@@ -36,7 +36,7 @@ func TestWithClient(t *testing.T) {
 }
 
 func TestDoUseMultipartForm(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -63,7 +63,7 @@ func TestDoUseMultipartForm(t *testing.T) {
 	is.Equal(responseData["something"], "yes")
 }
 func TestImmediatelyCloseReqBody(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -91,7 +91,7 @@ func TestImmediatelyCloseReqBody(t *testing.T) {
 }
 
 func TestDoErr(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -122,7 +122,7 @@ func TestDoErr(t *testing.T) {
 }
 
 func TestDoServerErr(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -147,7 +147,7 @@ func TestDoServerErr(t *testing.T) {
 }
 
 func TestDoBadRequestErr(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -180,7 +180,7 @@ func TestDoBadRequestErr(t *testing.T) {
 }
 
 func TestDoNoResponse(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -207,7 +207,7 @@ func TestDoNoResponse(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -243,14 +243,14 @@ func TestQuery(t *testing.T) {
 }
 
 func TestFile(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		file, header, err := r.FormFile("file")
 		is.NoErr(err)
-		defer file.Close()
+		t.Cleanup(func() { _ = file.Close() })
 		is.Equal(header.Filename, "filename.txt")
 
 		b, err := ioutil.ReadAll(file)
