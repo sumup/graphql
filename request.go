@@ -12,6 +12,7 @@ type (
 		Request() GraphRequest
 		ResponseBodyAs() interface{}
 		IsMutation() bool
+		Name() string
 	}
 	GraphRequest interface {
 		Query() string
@@ -24,8 +25,9 @@ type (
 	}
 	// queryOperation is the regular graphQL query operation
 	queryOperation struct {
-		Req 			GraphRequest
+		Req             GraphRequest
 		ResponseType 	interface{}
+		queryName       string
 		// isMutation indicates if query is used to modify data in the data store
 		isMutation		bool
 	}
@@ -37,24 +39,30 @@ type (
 		// when the defaultRequest is made.
 		header http.Header
 	}
-	// File represents a file to upload.
-	File struct {
-		Field string
-		Name  string
-		R     io.Reader
+	File interface {
+		Field() string
+		Name() string
+		Reader() io.Reader
+	}
+	// file represents a file to upload.
+	file struct {
+		field  string
+		name   string
+		reader io.Reader
 	}
 )
 // Deprecated: in favor of NewGraphOperation
 func NewRequest(q string) Operation {
-	return NewQueryOperation(q, nil)
+	return NewQueryOperation(q, "graphql", nil)
 }
 
 // NewQueryOperation creates a new graphql query operation
 // Pass in a nil response object to skip response parsing.
-func NewQueryOperation(query string, responseType interface{}) Operation {
+func NewQueryOperation(query, queryName string, responseType interface{}) Operation {
 	return &queryOperation{
 		Req: newReq(query),
 		ResponseType: responseType,
+		queryName: queryName,
 	}
 }
 
@@ -71,6 +79,10 @@ func NewMutationOperation(query string, responseType interface{}) Operation {
 		ResponseType: responseType,
 		isMutation: true,
 	}
+}
+
+func (r *queryOperation) Name() string {
+	return r.queryName
 }
 
 func (r *queryOperation) Request() GraphRequest {
@@ -108,10 +120,10 @@ func (d *defaultRequest) Headers() http.Header {
 // Files are only supported with a Client that was created with
 // the UseMultipartForm option.
 func (d *defaultRequest) File(fieldName, fileName string, reader io.Reader) {
-	d.files = append(d.files, File{
-		Field: fieldName,
-		Name:  fileName,
-		R:     reader,
+	d.files = append(d.files, &file{
+		field: fieldName,
+		name:  fileName,
+		reader:     reader,
 	})
 }
 
@@ -130,4 +142,16 @@ func newReq(q string) GraphRequest {
 // Query gets the query string of this defaultRequest.
 func (d *defaultRequest) Query() string {
 	return d.q
+}
+
+func (f *file) Name() string {
+	return f.name
+}
+
+func (f *file) Field() string {
+	return f.field
+}
+
+func (f *file) Reader() io.Reader {
+	return f.reader
 }

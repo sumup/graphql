@@ -170,11 +170,11 @@ func (c *chainState) call() *chainState {
 		response, err := c.origin.httpClient.Do(c.request)
 		if err == nil {
 			if response.StatusCode != http.StatusOK {
-				c.error = NewRequestError(response)
+				c.error = NewHTTPRequestError(response)
 			}
 			c.response = response
 		} else {
-			c.error = NewExecutionError(err)
+			c.error = NewExecutionResponseError(err, response)
 		}
 	}
 	return c
@@ -185,7 +185,7 @@ func (c *chainState) parseResponse() (*GraphResponse, Error) {
 		defer c.response.Body.Close()
 		var buf bytes.Buffer
 		if _, err := io.Copy(&buf, c.response.Body); err != nil {
-			return nil, NewExecutionError(errors.Wrap(err, "reading body"))
+			return nil, NewExecutionResponseError(errors.Wrap(err, "reading body"), c.response)
 		}
 		c.logf("<< %s", buf.String())
 		resp := c.operation.ResponseBodyAs()
@@ -196,17 +196,17 @@ func (c *chainState) parseResponse() (*GraphResponse, Error) {
 			}
 
 			if err := json.NewDecoder(&buf).Decode(&results); err != nil {
-				return nil, NewExecutionError(errors.Wrap(err, "decoding response"))
+				return nil, NewExecutionResponseError(errors.Wrap(err, "decoding response"), c.response)
 			}
 			gr = &GraphResponse{}
 
 			for _, result := range results.Data {
 				if !result.Successful {
 					messages := result.Messages
-					errs := make([]GraphErr, len(messages))
+					errs := make([]GraphError, len(messages))
 
 					for i, message := range messages {
-						errs[i] = GraphErr{
+						errs[i] = GraphError{
 							Message: emptyOrString(message.Message),
 							Code:    message.Code,
 						}
@@ -216,7 +216,7 @@ func (c *chainState) parseResponse() (*GraphResponse, Error) {
 				} else {
 					err := mapstructure.Decode(results.Data, &resp)
 					if err != nil {
-						return nil, NewExecutionError(errors.Wrap(err, "decoding response"))
+						return nil, NewExecutionResponseError(errors.Wrap(err, "decoding response"), c.response)
 					}
 				}
 				// The code above only supports payloads with a single mutation
@@ -225,11 +225,11 @@ func (c *chainState) parseResponse() (*GraphResponse, Error) {
 		} else {
 			gr = &GraphResponse{Data: resp}
 			if err := json.NewDecoder(&buf).Decode(&gr); err != nil {
-				return nil, NewExecutionError(errors.Wrap(err, "decoding response"))
+				return nil, NewExecutionResponseError(errors.Wrap(err, "decoding response"), c.response)
 			}
 		}
 		if len(gr.Errors) > 0 {
-			return nil, NewGraphQLError(gr.Errors, c.response)
+			return nil, NewGraphRequestError(gr.Errors, c.response)
 		}
 		return gr, nil
 	}
@@ -262,11 +262,11 @@ func (c *chainState) createMultipartBody() (*bytes.Buffer, string, Error) {
 	}
 	files := request.Files()
 	for i := range files {
-		part, err := writer.CreateFormFile(files[i].Field, files[i].Name)
+		part, err := writer.CreateFormFile(files[i].Field(), files[i].Name())
 		if err != nil {
 			return nil, "", NewExecutionError(errors.Wrap(err, "create form file"))
 		}
-		if _, err := io.Copy(part, files[i].R); err != nil {
+		if _, err := io.Copy(part, files[i].Reader()); err != nil {
 			return nil, "", NewExecutionError(errors.Wrap(err, "preparing file"))
 		}
 	}

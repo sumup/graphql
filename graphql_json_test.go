@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matryer/is"
+	assertIs "github.com/matryer/is"
 )
 
 func TestDoJSON(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -43,7 +43,7 @@ func TestDoJSON(t *testing.T) {
 }
 
 func TestDoJSONServerError(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -70,7 +70,7 @@ func TestDoJSONServerError(t *testing.T) {
 }
 
 func TestDoJSONBadRequestErr(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -104,17 +104,16 @@ func TestDoJSONBadRequestErr(t *testing.T) {
 		"miscellaneous message as to why the the defaultRequest was bad",
 	})
 	is.Equal(err.Response().StatusCode, http.StatusOK)
-	is.Equal(err.Details(), []ErrorDetail{
-		{
-			Code:    "",
-			Message: "miscellaneous message as to why the the defaultRequest was bad",
-			Domain:  "field.path",
-		},
-	})
+	expectedError := &errorDetail{
+		code:    "",
+		message: "miscellaneous message as to why the the defaultRequest was bad",
+		domain:  "field.path",
+	}
+	is.Equal(err.Details(), []ErrorDetail{ expectedError })
 }
 
 func TestQueryJSON(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +149,7 @@ func TestQueryJSON(t *testing.T) {
 
 func TestDoJSONMutation(t *testing.T) {
 	reflect.TypeOf(GraphResponse{})
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -199,7 +198,7 @@ func TestDoJSONMutation(t *testing.T) {
 }
 
 func TestDoJSONMutationWithStruct(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -261,7 +260,7 @@ func TestDoJSONMutationWithStruct(t *testing.T) {
 }
 
 func TestDoJSONMutationErr(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -315,7 +314,7 @@ func TestDoJSONMutationErr(t *testing.T) {
 }
 
 func TestHeader(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
