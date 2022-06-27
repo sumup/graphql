@@ -45,6 +45,9 @@ func getOperationName(r *http.Request) string {
 	}
 
 	operation := regex.FindAllSubmatch(b, -1)
+	if operation != nil {
+		return string(operation[0][2])
+	}
 
-	return string(operation[0][2])
+	return ""
 }

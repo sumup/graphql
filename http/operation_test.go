@@ -67,6 +67,26 @@ func Test_SetGraphqlOperation(t *testing.T) {
 		runTest(t, handlerFunc, runner)
 	})
 
+	t.Run("SetGraphqlOperation when operation name is not provided", func(t *testing.T) {
+		handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Empty(t, r.URL.RawQuery)
+
+			_, _ = io.WriteString(w, "{}")
+		})
+
+		runner := func(t *testing.T, client *graphql.Client) {
+			ctx := context.Background()
+			req := graphql.NewRequest("query {}")
+			var resp struct{}
+
+			err := client.Run(ctx, req, &resp)
+			assert.NoError(t, err)
+		}
+
+		runTest(t, handlerFunc, runner)
+	})
+}
+
 func runTest(t *testing.T, handlerFunc http.HandlerFunc, runner func(*testing.T, *graphql.Client)) {
 	srv := httptest.NewServer(handlerFunc)
 	defer srv.Close()
