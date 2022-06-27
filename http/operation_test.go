@@ -30,9 +30,7 @@ func Test_SetGraphqlOperation(t *testing.T) {
 
 		ctx := context.Background()
 		req := graphql.NewRequest("query FooBar {}")
-		var resp struct {
-			Value string
-		}
+		var resp struct{}
 
 		err := client.Run(ctx, req, &resp)
 		assert.NoError(t, err)
