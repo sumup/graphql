@@ -43,6 +43,7 @@ func getOperationName(r *http.Request) string {
 	if err != nil {
 		return ""
 	}
+	copyBody.Close()
 
 	operation := regex.FindAllSubmatch(b, -1)
 	if operation != nil {
