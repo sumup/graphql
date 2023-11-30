@@ -19,35 +19,39 @@ func SetGraphqlOperation(inner http.RoundTripper) http.RoundTripper {
 }
 
 func (ug *addOperation) RoundTrip(r *http.Request) (*http.Response, error) {
-	values := r.URL.Query()
-	operation := getOperationName(r)
+	if r != nil && r.URL != nil {
+		values := r.URL.Query()
+		operation := getOperationName(r)
 
-	if operation != "" {
-		values.Add("operation", operation)
-		r.URL.RawQuery = values.Encode()
+		if operation != "" {
+			values.Add("operation", operation)
+			r.URL.RawQuery = values.Encode()
+		}
 	}
-
 	return ug.inner.RoundTrip(r)
 }
 
 func getOperationName(r *http.Request) string {
 	regex := regexp.MustCompile(operationRegex)
-	getBody := r.GetBody
 
-	copyBody, err := getBody()
-	if err != nil {
-		return ""
-	}
+	if r.GetBody != nil {
+		getBody := r.GetBody
 
-	b, err := io.ReadAll(copyBody)
-	if err != nil {
-		return ""
-	}
-	copyBody.Close()
+		copyBody, err := getBody()
+		if err != nil {
+			return ""
+		}
 
-	operation := regex.FindAllSubmatch(b, -1)
-	if operation != nil {
-		return string(operation[0][2])
+		b, err := io.ReadAll(copyBody)
+		if err != nil {
+			return ""
+		}
+		copyBody.Close()
+
+		operation := regex.FindAllSubmatch(b, -1)
+		if operation != nil {
+			return string(operation[0][2])
+		}
 	}
 
 	return ""
