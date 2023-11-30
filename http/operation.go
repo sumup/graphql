@@ -19,14 +19,15 @@ func SetGraphqlOperation(inner http.RoundTripper) http.RoundTripper {
 }
 
 func (ug *addOperation) RoundTrip(r *http.Request) (*http.Response, error) {
-	values := r.URL.Query()
-	operation := getOperationName(r)
+	if r != nil && r.URL != nil {
+		values := r.URL.Query()
+		operation := getOperationName(r)
 
-	if operation != "" {
-		values.Add("operation", operation)
-		r.URL.RawQuery = values.Encode()
+		if operation != "" {
+			values.Add("operation", operation)
+			r.URL.RawQuery = values.Encode()
+		}
 	}
-
 	return ug.inner.RoundTrip(r)
 }
 
