@@ -3,6 +3,7 @@ package graphql
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -15,22 +16,28 @@ type (
 		Details() []ErrorDetail
 	}
 
-	RequestError struct {
+	// HttpRequestError occurs as an error response from a HTTP call.
+	HttpRequestError struct {
 		response *http.Response
 	}
 
+	// ExecutionError means one of 2 things: 1. request failed for some reason and wasn't
+	// fulfilled; 2. request was fulfilled and a response was given but post response
+	// processing failed.
 	ExecutionError struct {
 		message error
-	}
-
-	GraphQLError struct {
-		errors   []GraphErr
 		response *http.Response
 	}
 
-	GraphErr struct {
+	// GraphRequestError happens when errors were found at the graphql layer.
+	GraphRequestError struct {
+		errors   []GraphError
+		response *http.Response
+	}
+
+	GraphError struct {
 		Code       string
-		Extentions GraphExt
+		Extensions GraphExt
 		Message    string
 		Path       []string
 	}
@@ -39,31 +46,37 @@ type (
 		Code string
 	}
 
-	ErrorDetail struct {
-		Code    string
-		Message string
-		Domain  string
+	ErrorDetail interface {
+		Code()    string
+		Message() string
+		Domain()  string
+	}
+
+	errorDetail struct {
+		code    string
+		message string
+		domain  string
 	}
 )
 
 var (
 	// Type assertions
-	_ Error = &RequestError{}
+	_ Error = &HttpRequestError{}
 	_ Error = &ExecutionError{}
-	_ Error = &GraphQLError{}
+	_ Error = &GraphRequestError{}
 )
 
-func (e GraphErr) Error() string {
+func (e GraphError) Error() string {
 	return e.Message
 }
 
-func (e GraphErr) ErrCode() string {
+func (e GraphError) ErrCode() string {
 	code := e.Code
 	if len(code) > 0 {
 		return strings.ToLower(code)
 	}
 
-	code = e.Extentions.Code
+	code = e.Extensions.Code
 	if len(code) > 0 {
 		return strings.ToLower(code)
 	}
@@ -71,54 +84,78 @@ func (e GraphErr) ErrCode() string {
 	return ""
 }
 
-func (e GraphErr) ErrPath() string {
+func (e GraphError) ErrPath() string {
 	return strings.Join(e.Path, ".")
 }
 
-func (e GraphErr) ToErrorDetail() ErrorDetail {
-	return ErrorDetail{
-		Code:    e.ErrCode(),
-		Message: e.Message,
-		Domain:  e.ErrPath(),
+
+func (e *errorDetail) Code() string {
+	return e.code
+}
+
+func (e *errorDetail) Message() string {
+	return e.message
+}
+
+func (e *errorDetail) Domain()  string {
+	return e.domain
+}
+
+func (e GraphError) ToErrorDetail() ErrorDetail {
+	return &errorDetail{
+		code:    e.ErrCode(),
+		message: e.Message,
+		domain:  e.ErrPath(),
 	}
 }
 
-func NewRequestError(response *http.Response) *RequestError {
-	return &RequestError{
+func NewHTTPRequestError(response *http.Response) *HttpRequestError {
+	return &HttpRequestError{
 		response: response,
 	}
 }
 
-func (r *RequestError) Response() *http.Response {
+func (r *HttpRequestError) Response() *http.Response {
 	return r.response
 }
 
-func (r *RequestError) Error() string {
-	return fmt.Sprintf("request failed with status: %s", r.response.Status)
+func (r *HttpRequestError) Error() string {
+	return fmt.Sprintf("defaultRequest failed with status: %s", r.response.Status)
 }
 
-func (r *RequestError) Errors() []string {
+func (r *HttpRequestError) Errors() []string {
 	return []string{r.Error()}
 }
 
-func (r *RequestError) Code() string {
-	return http.StatusText(r.response.StatusCode)
+func (r *HttpRequestError) Code() string {
+	if r.response != nil {
+		return strconv.Itoa(r.response.StatusCode)
+	}
+	return ""
 }
 
-func (r *RequestError) Details() []ErrorDetail {
-	return []ErrorDetail{
-		{Code: r.Code(), Message: r.Error()},
-	}
+func (r *HttpRequestError) Details() []ErrorDetail {
+	var e []ErrorDetail
+	e = append(e, &errorDetail{
+		code: r.Code(),
+		message: r.Error(),
+	})
+	return e
 }
 
 func NewExecutionError(message error) *ExecutionError {
+	return NewExecutionResponseError(message, nil)
+}
+
+func NewExecutionResponseError(message error, response *http.Response) *ExecutionError {
 	return &ExecutionError{
 		message: message,
+		response: response,
 	}
 }
 
 func (e *ExecutionError) Response() *http.Response {
-	return nil
+	return e.response
 }
 
 func (e *ExecutionError) Error() string {
@@ -130,27 +167,33 @@ func (e *ExecutionError) Errors() []string {
 }
 
 func (e *ExecutionError) Code() string {
+	if e.response != nil {
+		return strconv.Itoa(e.response.StatusCode)
+	}
 	return ""
 }
 
 func (e *ExecutionError) Details() []ErrorDetail {
-	return []ErrorDetail{
-		{Code: e.Code(), Message: e.Error()},
-	}
+	var ed []ErrorDetail
+	ed = append(ed, &errorDetail{
+		code: e.Code(),
+		message: e.Error(),
+	})
+	return ed
 }
 
-func NewGraphQLError(errors []GraphErr, response *http.Response) *GraphQLError {
-	return &GraphQLError{
+func NewGraphRequestError(errors []GraphError, response *http.Response) *GraphRequestError {
+	return &GraphRequestError{
 		errors:   errors,
 		response: response,
 	}
 }
 
-func (g *GraphQLError) Response() *http.Response {
+func (g *GraphRequestError) Response() *http.Response {
 	return g.response
 }
 
-func (g *GraphQLError) Code() string {
+func (g *GraphRequestError) Code() string {
 	errors := g.errors
 
 	if len(errors) > 0 {
@@ -160,7 +203,7 @@ func (g *GraphQLError) Code() string {
 	return ""
 }
 
-func (g *GraphQLError) Error() string {
+func (g *GraphRequestError) Error() string {
 	errors := g.errors
 
 	if len(errors) > 0 {
@@ -170,8 +213,8 @@ func (g *GraphQLError) Error() string {
 	return ""
 }
 
-func (g *GraphQLError) Errors() []string {
-	errors := []string{}
+func (g *GraphRequestError) Errors() []string {
+	var errors []string
 	for _, err := range g.errors {
 		errors = append(errors, err.Error())
 	}
@@ -179,8 +222,8 @@ func (g *GraphQLError) Errors() []string {
 	return errors
 }
 
-func (g *GraphQLError) Details() []ErrorDetail {
-	errors := []ErrorDetail{}
+func (g *GraphRequestError) Details() []ErrorDetail {
+	var errors []ErrorDetail
 	for _, err := range g.errors {
 		errors = append(errors, err.ToErrorDetail())
 	}

@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matryer/is"
+	assertIs "github.com/matryer/is"
 )
 
 func TestWithClient(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	testClient := &http.Client{
 		Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
@@ -36,7 +36,7 @@ func TestWithClient(t *testing.T) {
 }
 
 func TestDoUseMultipartForm(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -63,7 +63,7 @@ func TestDoUseMultipartForm(t *testing.T) {
 	is.Equal(responseData["something"], "yes")
 }
 func TestImmediatelyCloseReqBody(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -91,7 +91,7 @@ func TestImmediatelyCloseReqBody(t *testing.T) {
 }
 
 func TestDoErr(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -101,7 +101,7 @@ func TestDoErr(t *testing.T) {
 		_, _ = io.WriteString(w, `{
 			"errors": [
 				{
-					"message": "miscellaneous message as to why the the request was bad"
+					"message": "miscellaneous message as to why the the defaultRequest was bad"
 				}
 			]
 		}`)
@@ -117,12 +117,12 @@ func TestDoErr(t *testing.T) {
 	err := client.Run(ctx, NewRequest("query {}"), &responseData)
 	is.True(err != nil)
 	is.Equal(err.Errors(), []string{
-		"miscellaneous message as to why the the request was bad",
+		"miscellaneous message as to why the the defaultRequest was bad",
 	})
 }
 
 func TestDoServerErr(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -141,13 +141,13 @@ func TestDoServerErr(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, NewRequest("query {}"), &responseData)
-	is.Equal(err.Error(), "request failed with status: 500 Internal Server Error")
-	is.Equal(err.Errors(), []string{"request failed with status: 500 Internal Server Error"})
+	is.Equal(err.Error(), "defaultRequest failed with status: 500 Internal Server Error")
+	is.Equal(err.Errors(), []string{"defaultRequest failed with status: 500 Internal Server Error"})
 	is.Equal(err.Response().StatusCode, http.StatusInternalServerError)
 }
 
 func TestDoBadRequestErr(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -158,7 +158,7 @@ func TestDoBadRequestErr(t *testing.T) {
 		_, _ = io.WriteString(w, `{
 			"errors": [
 				{
-					"message": "miscellaneous message as to why the the request was bad"
+					"message": "miscellaneous message as to why the the defaultRequest was bad"
 				}
 			]
 		}`)
@@ -172,15 +172,15 @@ func TestDoBadRequestErr(t *testing.T) {
 	defer cancel()
 	var responseData map[string]interface{}
 	err := client.Run(ctx, NewRequest("query {}"), &responseData)
-	is.Equal(err.Error(), "miscellaneous message as to why the the request was bad")
+	is.Equal(err.Error(), "miscellaneous message as to why the the defaultRequest was bad")
 	is.Equal(err.Errors(), []string{
-		"miscellaneous message as to why the the request was bad",
+		"miscellaneous message as to why the the defaultRequest was bad",
 	})
 	is.Equal(err.Response().StatusCode, http.StatusOK)
 }
 
 func TestDoNoResponse(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
@@ -207,7 +207,7 @@ func TestDoNoResponse(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -225,11 +225,11 @@ func TestQuery(t *testing.T) {
 	client := NewClient(srv.URL, UseMultipartForm())
 
 	req := NewRequest("query {}")
-	req.Var("username", "matryer")
+	req.Request().Var("username", "matryer")
 
 	// check variables
 	is.True(req != nil)
-	is.Equal(req.Vars()["username"], "matryer")
+	is.Equal(req.Request().Vars()["username"], "matryer")
 
 	var resp struct {
 		Value string
@@ -243,14 +243,14 @@ func TestQuery(t *testing.T) {
 }
 
 func TestFile(t *testing.T) {
-	is := is.New(t)
+	is := assertIs.New(t)
 
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		file, header, err := r.FormFile("file")
 		is.NoErr(err)
-		defer file.Close()
+		t.Cleanup(func() { _ = file.Close() })
 		is.Equal(header.Filename, "filename.txt")
 
 		b, err := ioutil.ReadAll(file)
@@ -266,7 +266,7 @@ func TestFile(t *testing.T) {
 	client := NewClient(srv.URL, UseMultipartForm())
 	f := strings.NewReader(`This is a file`)
 	req := NewRequest("query {}")
-	req.File("file", "filename.txt", f)
+	req.Request().File("file", "filename.txt", f)
 	err := client.Run(ctx, req, nil)
 	is.NoErr(err)
 }
